@@ -68,14 +68,20 @@ class TransformAPI:
         s  = round(math.sin(r), 3)
         ms = round(-s, 3)
         labels = {
-            "Rotación":          [[str(c),  str(ms)], [str(s),  str(c)]],
-            "Homotecia":         [[f"{esc:.2f}", "0"], ["0", f"{esc:.2f}"]],
-            "Reflexión eje X":   [["1",  "0"],  ["0", "-1"]],
-            "Reflexión eje Y":   [["-1", "0"],  ["0",  "1"]],
-            "Reflexión y = x":   [["0",  "1"],  ["1",  "0"]],
-            "Reflexión y = -x":  [["0",  "-1"], ["-1", "0"]],
-            "Cizallamiento X":   [["1", f"{ciz:.2f}"], ["0", "1"]],
-            "Cizallamiento Y":   [["1", "0"], [f"{ciz:.2f}", "1"]],
+            "Rotación":               [[str(c),  str(ms)], [str(s),  str(c)]],
+            "Homotecia":              [[f"{esc:.2f}", "0"], ["0", f"{esc:.2f}"]],
+            "Reflexión eje X":        [["1",  "0"],  ["0", "-1"]],
+            "Reflexión eje Y":        [["-1", "0"],  ["0",  "1"]],
+            "Reflexión y = x":        [["0",  "1"],  ["1",  "0"]],
+            "Reflexión y = -x":       [["0",  "-1"], ["-1", "0"]],
+            "Cizallamiento X":        [["1", f"{ciz:.2f}"], ["0", "1"]],
+            "Cizallamiento Y":        [["1", "0"], [f"{ciz:.2f}", "1"]],
+            "Proyección eje X":       [["1", "0"], ["0", "0"]],
+            "Proyección eje Y":       [["0", "0"], ["0", "1"]],
+            "Rotación + Escala":      [[f"{esc:.2f}·cos{ang:.0f}°", f"-{esc:.2f}·sin{ang:.0f}°"],
+                                       [f"{esc:.2f}·sin{ang:.0f}°",  f"{esc:.2f}·cos{ang:.0f}°"]],
+            "Reflexión θ":            [[str(c), str(s)], [str(s), str(-c)]],
+            "Compresión / Expansión": [[f"{esc:.2f}", "0"], ["0", f"{1/esc:.3f}"]],
         }
         return labels.get(name, [["1","0"],["0","1"]])
 
@@ -115,15 +121,22 @@ class TransformAPI:
     def _build_matrix(self, name: str, ang: float, esc: float, ciz: float) -> np.ndarray:
         r = math.radians(ang)
         c, s = math.cos(r), math.sin(r)
+        k = esc if esc > 0 else 0.01
         matrices = {
-            "Rotación":          np.array([[c, -s], [s,  c]]),
-            "Homotecia":         np.array([[esc, 0], [0, esc]]),
-            "Reflexión eje X":   np.array([[1, 0], [0, -1]]),
-            "Reflexión eje Y":   np.array([[-1, 0], [0, 1]]),
-            "Reflexión y = x":   np.array([[0, 1], [1, 0]]),
-            "Reflexión y = -x":  np.array([[0, -1], [-1, 0]]),
-            "Cizallamiento X":   np.array([[1, ciz], [0, 1]]),
-            "Cizallamiento Y":   np.array([[1, 0], [ciz, 1]]),
+            "Rotación":               np.array([[c, -s], [s,  c]]),
+            "Homotecia":              np.array([[esc, 0], [0, esc]]),
+            "Reflexión eje X":        np.array([[1, 0], [0, -1]]),
+            "Reflexión eje Y":        np.array([[-1, 0], [0, 1]]),
+            "Reflexión y = x":        np.array([[0, 1], [1, 0]]),
+            "Reflexión y = -x":       np.array([[0, -1], [-1, 0]]),
+            "Cizallamiento X":        np.array([[1, ciz], [0, 1]]),
+            "Cizallamiento Y":        np.array([[1, 0], [ciz, 1]]),
+            # ── Nuevas transformaciones ──────────────────────────
+            "Proyección eje X":       np.array([[1, 0], [0, 0]]),
+            "Proyección eje Y":       np.array([[0, 0], [0, 1]]),
+            "Rotación + Escala":      np.array([[k*c, -k*s], [k*s, k*c]]),
+            "Reflexión θ":            np.array([[c, s], [s, -c]]),
+            "Compresión / Expansión": np.array([[k, 0], [0, 1/k]]),
         }
         return matrices.get(name, np.eye(2))
 
@@ -133,6 +146,10 @@ class TransformAPI:
             "Reflexión eje X","Reflexión eje Y",
             "Reflexión y = x","Reflexión y = -x",
             "Cizallamiento X","Cizallamiento Y",
+            # Nuevas
+            "Proyección eje X","Proyección eje Y",
+            "Rotación + Escala","Reflexión θ",
+            "Compresión / Expansión",
         ]
 
 
