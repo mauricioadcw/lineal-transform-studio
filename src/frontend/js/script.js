@@ -3,6 +3,50 @@
    Matemática Discreta · 1AMA0708
    ══════════════════════════════════════════════════════════ */
 
+/* ─── PANTALLA DE CARGA ───────────────────────────────────── */
+(function initLoadingScreen() {
+  const screen = document.getElementById('loading-screen');
+  if (!screen) return;
+
+  const fill   = document.getElementById('ld-fill');
+  const status = document.getElementById('ld-status');
+  const cells  = Array.from({ length: 9 }, (_, i) => document.getElementById('lc' + i));
+
+  const steps = [
+    { pct: 10,  msg: 'Inicializando módulos…' },
+    { pct: 25,  msg: 'Cargando motor de matrices…' },
+    { pct: 42,  msg: 'Compilando transformaciones…' },
+    { pct: 58,  msg: 'Preparando figuras geométricas…' },
+    { pct: 74,  msg: 'Construyendo plano cartesiano…' },
+    { pct: 88,  msg: 'Verificando eigenvectores…' },
+    { pct: 100, msg: '¡Listo!' },
+  ];
+
+  // Celdas de la matriz parpadeando aleatoriamente
+  const cellInterval = setInterval(() => {
+    cells.forEach(c => { if (c) c.classList.remove('lit'); });
+    const count = Math.floor(Math.random() * 4) + 1;
+    cells.slice().sort(() => Math.random() - .5).slice(0, count)
+         .forEach(c => { if (c) c.classList.add('lit'); });
+  }, 160);
+
+  let si = 0;
+  function nextStep() {
+    if (si >= steps.length) {
+      clearInterval(cellInterval);
+      cells.forEach(c => { if (c) c.classList.add('lit'); });
+      setTimeout(() => { screen.classList.add('done'); }, 280);
+      return;
+    }
+    const s = steps[si++];
+    if (fill)   fill.style.width   = s.pct + '%';
+    if (status) status.textContent = s.msg;
+    const delay = si === steps.length ? 200 : 240 + Math.random() * 130;
+    setTimeout(nextStep, delay);
+  }
+  setTimeout(nextStep, 350);
+})();
+
 /* ─── DATOS DE APPS REALES ───────────────────────────────── */
 const APPS_DATA = [
   {
@@ -99,14 +143,19 @@ const APPS_DATA = [
 
 /* Mapa de colores hex por transformación (para pills) */
 const TR_COLORS_HEX_MAP = {
-  "Rotación":         "#ffaa28",
-  "Homotecia":        "#3de878",
-  "Reflexión eje X":  "#ff3d7a",
-  "Reflexión eje Y":  "#ff7848",
-  "Reflexión y = x":  "#a055ff",
-  "Reflexión y = −x": "#c040ff",
-  "Cizallamiento X":  "#28e8b0",
-  "Cizallamiento Y":  "#ffd832",
+  "Rotación":               "#ffaa28",
+  "Homotecia":              "#3de878",
+  "Reflexión eje X":        "#ff3d7a",
+  "Reflexión eje Y":        "#ff7848",
+  "Reflexión y = x":        "#a055ff",
+  "Reflexión y = −x":       "#c040ff",
+  "Cizallamiento X":        "#28e8b0",
+  "Cizallamiento Y":        "#ffd832",
+  "Proyección eje X":       "#38c4ff",
+  "Proyección eje Y":       "#38c4ff",
+  "Rotación + Escala":      "#ffaa28",
+  "Reflexión θ":            "#ff7848",
+  "Compresión / Expansión": "#3de878",
 };
 
 /* ─── CONSTANTES ─────────────────────────────────────────── */
@@ -114,7 +163,7 @@ const FIGURAS = {
   "Triángulo": [[0, 2.5], [2, -1.5], [-2, -1.5]],
   "Cuadrado":  [[-1.5, 1.5], [1.5, 1.5], [1.5, -1.5], [-1.5, -1.5]],
   "Flecha":    [[0, .8], [1.8, 0], [0, -.8], [0, -.3], [-1.8, -.3], [-1.8, .3], [0, .3]],
-  "Letra F":   [[-1, 2], [-1, -2], [-.2, -2], [-.2, .2], [1, .2], [1, .9], [-.2, .9], [-.2, 2]],
+  "Letra F":   [[-1,  1.8],[-1, -2], [-0.2, -2], [-0.2, -0.4], [ 0.7, -0.4], [ 0.7,  0.2], [-0.2,  0.2], [-0.2,  1.1], [ 1.2,  1.1], [ 1.2,  1.8]],
   "Estrella":  [[0, 2.2], [.5, .7], [2.1, .7], [.8, -.3], [1.3, -2], [0, -1], [-1.3, -2], [-.8, -.3], [-2.1, .7], [-.5, .7]],
   "Casa":      [[0, 2.5], [2, .5], [2, -2], [-2, -2], [-2, .5]],
 };
@@ -124,28 +173,41 @@ const TRANSFORMS = [
   "Rotación", "Homotecia",
   "Reflexión eje X", "Reflexión eje Y", "Reflexión y = x", "Reflexión y = −x",
   "Cizallamiento X", "Cizallamiento Y",
+  // ── Nuevas ──────────────────────────────────────────────
+  "Proyección eje X", "Proyección eje Y",
+  "Rotación + Escala", "Reflexión θ", "Compresión / Expansión",
 ];
 
 const TR_COLORS = {
-  "Rotación":         "var(--rot)",
-  "Homotecia":        "var(--hom)",
-  "Reflexión eje X":  "var(--ref)",
-  "Reflexión eje Y":  "var(--ref2)",
-  "Reflexión y = x":  "var(--refd)",
-  "Reflexión y = −x": "var(--refd2)",
-  "Cizallamiento X":  "var(--shrx)",
-  "Cizallamiento Y":  "var(--shry)",
+  "Rotación":               "var(--rot)",
+  "Homotecia":              "var(--hom)",
+  "Reflexión eje X":        "var(--ref)",
+  "Reflexión eje Y":        "var(--ref2)",
+  "Reflexión y = x":        "var(--refd)",
+  "Reflexión y = −x":       "var(--refd2)",
+  "Cizallamiento X":        "var(--shrx)",
+  "Cizallamiento Y":        "var(--shry)",
+  "Proyección eje X":       "var(--orig)",
+  "Proyección eje Y":       "var(--orig)",
+  "Rotación + Escala":      "var(--rot)",
+  "Reflexión θ":            "var(--ref2)",
+  "Compresión / Expansión": "var(--hom)",
 };
 
 const TR_COLORS_HEX = {
-  "Rotación":         "#ffaa28",
-  "Homotecia":        "#3de878",
-  "Reflexión eje X":  "#ff3d7a",
-  "Reflexión eje Y":  "#ff7848",
-  "Reflexión y = x":  "#a055ff",
-  "Reflexión y = −x": "#c040ff",
-  "Cizallamiento X":  "#28e8b0",
-  "Cizallamiento Y":  "#ffd832",
+  "Rotación":               "#ffaa28",
+  "Homotecia":              "#3de878",
+  "Reflexión eje X":        "#ff3d7a",
+  "Reflexión eje Y":        "#ff7848",
+  "Reflexión y = x":        "#a055ff",
+  "Reflexión y = −x":       "#c040ff",
+  "Cizallamiento X":        "#28e8b0",
+  "Cizallamiento Y":        "#ffd832",
+  "Proyección eje X":       "#38c4ff",
+  "Proyección eje Y":       "#38c4ff",
+  "Rotación + Escala":      "#ffaa28",
+  "Reflexión θ":            "#ff7848",
+  "Compresión / Expansión": "#3de878",
 };
 
 /* ─── ESTADO ─────────────────────────────────────────────── */
@@ -184,15 +246,22 @@ function deg2rad(d) { return d * Math.PI / 180; }
 
 function getMatrix(name, ang, esc, ciz) {
   const c = Math.cos(deg2rad(ang)), s = Math.sin(deg2rad(ang));
+  const k = esc > 0 ? esc : 0.01;
   const m = {
-    "Rotación":         [[c, -s], [s,  c]],
-    "Homotecia":        [[esc, 0], [0, esc]],
-    "Reflexión eje X":  [[1, 0], [0, -1]],
-    "Reflexión eje Y":  [[-1, 0], [0, 1]],
-    "Reflexión y = x":  [[0, 1], [1, 0]],
-    "Reflexión y = −x": [[0, -1], [-1, 0]],
-    "Cizallamiento X":  [[1, ciz], [0, 1]],
-    "Cizallamiento Y":  [[1, 0], [ciz, 1]],
+    "Rotación":               [[c, -s], [s,  c]],
+    "Homotecia":              [[esc, 0], [0, esc]],
+    "Reflexión eje X":        [[1, 0], [0, -1]],
+    "Reflexión eje Y":        [[-1, 0], [0, 1]],
+    "Reflexión y = x":        [[0, 1], [1, 0]],
+    "Reflexión y = −x":       [[0, -1], [-1, 0]],
+    "Cizallamiento X":        [[1, ciz], [0, 1]],
+    "Cizallamiento Y":        [[1, 0], [ciz, 1]],
+    // ── Nuevas ────────────────────────────────────────────
+    "Proyección eje X":       [[1, 0], [0, 0]],
+    "Proyección eje Y":       [[0, 0], [0, 1]],
+    "Rotación + Escala":      [[k*c, -k*s], [k*s, k*c]],
+    "Reflexión θ":            [[c, s], [s, -c]],
+    "Compresión / Expansión": [[k, 0], [0, 1/k]],
   };
   return m[name] || [[1, 0], [0, 1]];
 }
@@ -208,15 +277,22 @@ function getMatLabel(name, ang, esc, ciz) {
   const c  = +Math.cos(deg2rad(ang)).toFixed(3);
   const s  = +Math.sin(deg2rad(ang)).toFixed(3);
   const ms = -s;
+  const k  = esc > 0 ? esc : 0.01;
   const l = {
-    "Rotación":         [[`${c}`, `${ms}`], [`${s}`, `${c}`]],
-    "Homotecia":        [[`${esc.toFixed(2)}`, "0"], ["0", `${esc.toFixed(2)}`]],
-    "Reflexión eje X":  [["1", "0"], ["0", "−1"]],
-    "Reflexión eje Y":  [["−1", "0"], ["0", "1"]],
-    "Reflexión y = x":  [["0", "1"], ["1", "0"]],
-    "Reflexión y = −x": [["0", "−1"], ["−1", "0"]],
-    "Cizallamiento X":  [["1", `${ciz.toFixed(2)}`], ["0", "1"]],
-    "Cizallamiento Y":  [["1", "0"], [`${ciz.toFixed(2)}`, "1"]],
+    "Rotación":               [[`${c}`, `${ms}`], [`${s}`, `${c}`]],
+    "Homotecia":              [[`${esc.toFixed(2)}`, "0"], ["0", `${esc.toFixed(2)}`]],
+    "Reflexión eje X":        [["1", "0"], ["0", "−1"]],
+    "Reflexión eje Y":        [["−1", "0"], ["0", "1"]],
+    "Reflexión y = x":        [["0", "1"], ["1", "0"]],
+    "Reflexión y = −x":       [["0", "−1"], ["−1", "0"]],
+    "Cizallamiento X":        [["1", `${ciz.toFixed(2)}`], ["0", "1"]],
+    "Cizallamiento Y":        [["1", "0"], [`${ciz.toFixed(2)}`, "1"]],
+    // ── Nuevas ────────────────────────────────────────────
+    "Proyección eje X":       [["1", "0"], ["0", "0"]],
+    "Proyección eje Y":       [["0", "0"], ["0", "1"]],
+    "Rotación + Escala":      [[`${k.toFixed(2)}c`, `−${k.toFixed(2)}s`], [`${k.toFixed(2)}s`, `${k.toFixed(2)}c`]],
+    "Reflexión θ":            [[`${c}`, `${s}`], [`${s}`, `${(-c).toFixed(3)}`]],
+    "Compresión / Expansión": [[`${k.toFixed(2)}`, "0"], ["0", `${(1/k).toFixed(3)}`]],
   };
   return l[name] || [["1", "0"], ["0", "1"]];
 }
@@ -458,25 +534,37 @@ function renderCanvas() {
 
 /* ─── INFO PANEL ─────────────────────────────────────────── */
 const FORMULAS = {
-  "Rotación":         { main: "T(v) = R(θ)·v",    param: () => `θ = ${state.ang.toFixed(0)}°`,    note: "Preserva longitudes y ángulos" },
-  "Homotecia":        { main: "T(v) = k·I·v",     param: () => `k = ${state.esc.toFixed(2)}`,     note: "Escala uniforme desde el origen" },
-  "Reflexión eje X":  { main: "T(x,y) = (x, −y)", param: () => "Eje de reflexión: eje X",        note: "Invierte componente vertical" },
-  "Reflexión eje Y":  { main: "T(x,y) = (−x, y)", param: () => "Eje de reflexión: eje Y",        note: "Invierte componente horizontal" },
-  "Reflexión y = x":  { main: "T(x,y) = (y, x)",  param: () => "Eje: y = x",                     note: "Intercambia coordenadas" },
-  "Reflexión y = -x": { main: "T(x,y) = (−y, −x)",param: () => "Eje: y = −x",                   note: "Intercambia e invierte" },
-  "Cizallamiento X":  { main: "T(x,y) = (x+k·y, y)",  param: () => `k = ${state.ciz.toFixed(2)}`, note: "Desplaza horizontal según y" },
-  "Cizallamiento Y":  { main: "T(x,y) = (x, k·x+y)", param: () => `k = ${state.ciz.toFixed(2)}`, note: "Desplaza vertical según x" },
+  "Rotación":               { main: "T(v) = R(θ)·v",        param: () => `θ = ${state.ang.toFixed(0)}°`,                          note: "Preserva longitudes y ángulos" },
+  "Homotecia":              { main: "T(v) = k·I·v",         param: () => `k = ${state.esc.toFixed(2)}`,                           note: "Escala uniforme desde el origen" },
+  "Reflexión eje X":        { main: "T(x,y) = (x, −y)",     param: () => "Eje de reflexión: eje X",                               note: "Invierte componente vertical" },
+  "Reflexión eje Y":        { main: "T(x,y) = (−x, y)",     param: () => "Eje de reflexión: eje Y",                               note: "Invierte componente horizontal" },
+  "Reflexión y = x":        { main: "T(x,y) = (y, x)",      param: () => "Eje: y = x",                                            note: "Intercambia coordenadas" },
+  "Reflexión y = -x":       { main: "T(x,y) = (−y, −x)",   param: () => "Eje: y = −x",                                           note: "Intercambia e invierte" },
+  "Cizallamiento X":        { main: "T(x,y) = (x+k·y, y)",  param: () => `k = ${state.ciz.toFixed(2)}`,                          note: "Desplaza horizontal según y" },
+  "Cizallamiento Y":        { main: "T(x,y) = (x, k·x+y)", param: () => `k = ${state.ciz.toFixed(2)}`,                           note: "Desplaza vertical según x" },
+  // ── Nuevas ──────────────────────────────────────────────
+  "Proyección eje X":       { main: "T(x,y) = (x, 0)",      param: () => "Proyección ortogonal sobre X",                          note: "det = 0 · no invertible · idempotente" },
+  "Proyección eje Y":       { main: "T(x,y) = (0, y)",      param: () => "Proyección ortogonal sobre Y",                          note: "det = 0 · no invertible · idempotente" },
+  "Rotación + Escala":      { main: "T(v) = k·R(θ)·v",      param: () => `θ = ${state.ang.toFixed(0)}°   k = ${state.esc.toFixed(2)}`, note: "Similitud directa · det = k²" },
+  "Reflexión θ":            { main: "T(x,y) = (x·cosθ+y·sinθ, x·sinθ−y·cosθ)", param: () => `θ = ${state.ang.toFixed(0)}°`,     note: "Isometría inversa · det = −1" },
+  "Compresión / Expansión": { main: "T(x,y) = (k·x, y/k)",  param: () => `k = ${state.esc.toFixed(2)}   1/k = ${(1/Math.max(state.esc,0.01)).toFixed(3)}`, note: "Preserva área (det = 1) · distorsión hiperbólica" },
 };
 
 const PROPS = {
-  "Rotación":         [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = 1",  t: 1 }],
-  "Homotecia":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = k²", t: 1 }],
-  "Reflexión eje X":  [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
-  "Reflexión eje Y":  [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
-  "Reflexión y = x":  [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
-  "Reflexión y = −x": [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
-  "Cizallamiento X":  [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }],
-  "Cizallamiento Y":  [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }],
+  "Rotación":               [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = 1",  t: 1 }],
+  "Homotecia":              [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = k²", t: 1 }],
+  "Reflexión eje X":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
+  "Reflexión eje Y":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
+  "Reflexión y = x":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
+  "Reflexión y = −x":       [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
+  "Cizallamiento X":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }],
+  "Cizallamiento Y":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }],
+  // ── Nuevas ──────────────────────────────────────────────
+  "Proyección eje X":       [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = 0",  t: 0 }, { n: "Idempotente", t: 1 }],
+  "Proyección eje Y":       [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = 0",  t: 0 }, { n: "Idempotente", t: 1 }],
+  "Rotación + Escala":      [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = k²", t: 1 }, { n: "Similitud",   t: 1 }],
+  "Reflexión θ":            [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }, { n: "Involución",  t: 1 }],
+  "Compresión / Expansión": [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }, { n: "Hiperbólica", t: 1 }],
 };
 
 function updateInfo() {
@@ -523,12 +611,13 @@ function buildSidebar() {
   });
 
   // Botones de transformación
+  const TR_KEYS = ['1','2','3','4','5','6','7','8','9','0','Q','W','E'];
   const tl = document.getElementById('tr-list');
   TRANSFORMS.forEach((n, i) => {
     const d = document.createElement('div');
     d.className = 'tr-btn' + (i === state.trIdx ? ' active' : '');
     d.style.setProperty('--c', TR_COLORS[n]);
-    d.innerHTML = `<div class="tr-dot"></div><span class="tr-name">${n}</span><span class="tr-key">${i + 1}</span>`;
+    d.innerHTML = `<div class="tr-dot"></div><span class="tr-name">${n}</span><span class="tr-key">${TR_KEYS[i] || ''}</span>`;
     d.onclick = () => { state.trIdx = i; refreshSidebar(); updateInfo(); };
     tl.appendChild(d);
   });
@@ -724,6 +813,11 @@ document.addEventListener('keydown', e => {
     const i = parseInt(k) - 1;
     if (i < TRANSFORMS.length) { state.trIdx = i; refreshSidebar(); updateInfo(); }
     return;
+  }
+  // Teclas para las nuevas transformaciones
+  const NEW_TR_KEYS = { '9': 8, '0': 9, 'q': 10, 'Q': 10, 'w': 11, 'W': 11, 'e': 12, 'E': 12 };
+  if (NEW_TR_KEYS[k] !== undefined) {
+    state.trIdx = NEW_TR_KEYS[k]; refreshSidebar(); updateInfo(); return;
   }
   if (k === 'ArrowUp')    { state.trIdx  = (state.trIdx  - 1 + TRANSFORMS.length) % TRANSFORMS.length; refreshSidebar(); updateInfo(); }
   if (k === 'ArrowDown')  { state.trIdx  = (state.trIdx  + 1) % TRANSFORMS.length; refreshSidebar(); updateInfo(); }

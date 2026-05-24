@@ -11,36 +11,31 @@
 
   <!-- Estilos -->
   <link rel="stylesheet" href="css/styles.css"/>
+  <!-- App oculto hasta que se cierre el splash -->
+  <style>#app { display: none; } #app.visible { display: grid; }</style>
 </head>
 <body>
+
+<!-- ─── LOADING SCREEN ────────────────────────────────────── -->
+<div id="loading-screen">
+  <div class="ld-logo">Lineal Transform <span>Studio</span></div>
+  <div class="ld-matrix" id="ld-matrix">
+    <div class="ld-cell" id="lc0">1</div><div class="ld-cell" id="lc1">0</div><div class="ld-cell" id="lc2">0</div>
+    <div class="ld-cell" id="lc3">0</div><div class="ld-cell" id="lc4">1</div><div class="ld-cell" id="lc5">0</div>
+    <div class="ld-cell" id="lc6">0</div><div class="ld-cell" id="lc7">0</div><div class="ld-cell" id="lc8">1</div>
+  </div>
+  <div class="ld-bar-wrap">
+    <div class="ld-bar-track"><div class="ld-bar-fill" id="ld-fill"></div></div>
+    <div class="ld-status" id="ld-status">Iniciando módulos…</div>
+  </div>
+</div>
 
 <!-- ─── SPLASH ────────────────────────────────────────────── -->
 <div id="splash">
   <div class="splash-accent-bar"></div>
   <h1 class="splash-title">Lineal Transform<br><span>Studio</span></h1>
   <p class="splash-sub">Visualización Interactiva de Transformaciones Lineales en ℝ²</p>
-  <div class="splash-cards">
-    <div class="splash-card">
-      <div class="splash-card-icon">▷</div>
-      <div class="splash-card-name">Videojuegos</div>
-      <div class="splash-card-desc">Sprites, cámaras 2D, colisiones y física</div>
-    </div>
-    <div class="splash-card">
-      <div class="splash-card-icon">◎</div>
-      <div class="splash-card-name">Gráficos 3D</div>
-      <div class="splash-card-desc">Renderizado, proyección y clipping</div>
-    </div>
-    <div class="splash-card">
-      <div class="splash-card-icon">※</div>
-      <div class="splash-card-name">Robótica</div>
-      <div class="splash-card-desc">Cinemática y orientación de sensores</div>
-    </div>
-    <div class="splash-card">
-      <div class="splash-card-icon">⨃</div>
-      <div class="splash-card-name">Visión IA</div>
-      <div class="splash-card-desc">AR, perspectiva y reconocimiento</div>
-    </div>
-  </div>
+
   <div class="splash-divider"></div>
   <p class="splash-meta">Matemática Discreta · 1AMA0708 · Trabajo Grupal TB1</p>
   <button class="splash-btn" id="splash-btn">▶ &nbsp;Iniciar Simulador</button>
@@ -201,5 +196,34 @@
 
 <!-- Lógica JavaScript -->
 <script src="js/script.js"></script>
+<!-- Show app after loading screen fades out -->
+<script>
+document.getElementById('loading-screen').addEventListener('transitionend', function () {
+  this.style.display = 'none';
+});
+
+// Show #app after loading screen starts fading
+const _obs = new MutationObserver(() => {
+  if (document.getElementById('loading-screen').classList.contains('done')) {
+
+    document.getElementById('app').classList.add('visible');
+
+    requestAnimationFrame(() => {
+      resizeCanvas();
+      loop();
+    });
+
+    _obs.disconnect();
+  }
+});
+
+_obs.observe(
+  document.getElementById('loading-screen'),
+  {
+    attributes: true,
+    attributeFilter: ['class']
+  }
+);
+</script>
 </body>
 </html>
