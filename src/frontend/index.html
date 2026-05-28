@@ -60,7 +60,7 @@
 
       <div class="sec-label">Parámetros</div>
       <div id="params-wrap">
-        <div class="param-row">
+      <div class="param-row" id="param-row-ang">
           <div class="param-header">
             <span class="param-label">θ &nbsp;Ángulo de rotación</span>
             <span class="param-value" id="val-ang" style="--c:var(--rot)">45°</span>
@@ -70,7 +70,7 @@
           </div>
           <div class="param-hints"><span>−180°</span><span>+180°</span></div>
         </div>
-        <div class="param-row">
+        <div class="param-row" id="param-row-esc">
           <div class="param-header">
             <span class="param-label">k &nbsp;Factor de escala</span>
             <span class="param-value" id="val-esc" style="--c:var(--hom)">2.00</span>
@@ -80,7 +80,7 @@
           </div>
           <div class="param-hints"><span>0.1×</span><span>4×</span></div>
         </div>
-        <div class="param-row">
+        <div class="param-row" id="param-row-ciz">
           <div class="param-header">
             <span class="param-label">k &nbsp;Factor de cizalla</span>
             <span class="param-value" id="val-ciz" style="--c:var(--shrx)">1.00</span>
@@ -89,6 +89,26 @@
             <div class="param-fill" id="fill-ciz" style="--c:var(--shrx);width:66.7%"></div>
           </div>
           <div class="param-hints"><span>−3</span><span>+3</span></div>
+        </div>
+        <div class="param-row" id="param-row-tx" style="display:none">
+          <div class="param-header">
+            <span class="param-label">tx &nbsp;Desplazamiento en X</span>
+            <span class="param-value" id="val-tx" style="--c:var(--accent)">2.00</span>
+          </div>
+          <div class="param-track" id="track-tx" data-param="tx">
+            <div class="param-fill" id="fill-tx" style="--c:var(--accent);width:70%"></div>
+          </div>
+          <div class="param-hints"><span>−5</span><span>+5</span></div>
+        </div>
+        <div class="param-row" id="param-row-ty" style="display:none">
+          <div class="param-header">
+            <span class="param-label">ty &nbsp;Desplazamiento en Y</span>
+            <span class="param-value" id="val-ty" style="--c:var(--accent)">1.00</span>
+          </div>
+          <div class="param-track" id="track-ty" data-param="ty">
+            <div class="param-fill" id="fill-ty" style="--c:var(--accent);width:60%"></div>
+          </div>
+          <div class="param-hints"><span>−5</span><span>+5</span></div>
         </div>
       </div>
 
@@ -134,7 +154,7 @@
       <div id="tr-desc"    class="eq-line"></div>
     </div>
     <div>
-      <div class="info-block-title">Matriz 2×2</div>
+      <div class="info-block-title" id="matrix-title">Matriz 2×2</div>
       <div id="matrix-display">
         <span class="mat-bracket" id="mat-br-l" style="--c-tr:var(--accent)">[</span>
         <div class="mat-grid">
@@ -194,35 +214,99 @@
   </div>
 </div>
 
+<!-- ─── PANEL FIGURA PERSONALIZADA ────────────────────────── -->
+<div id="custom-fig-panel" class="custom-fig-panel">
+  <div class="cfp-header">
+    <div class="cfp-title-row">
+      <span class="cfp-icon">⬡</span>
+      <div>
+        <div class="cfp-title">Figura Personalizada</div>
+        <div class="cfp-sub">Ingresa puntos para construir tu figura</div>
+      </div>
+      <button class="cfp-close" id="cfp-close" title="Cerrar">✕</button>
+    </div>
+  </div>
+
+  <div class="cfp-body">
+    <!-- Input de punto -->
+    <div class="cfp-input-section">
+      <div class="cfp-input-label">Agregar punto (x, y)</div>
+      <div class="cfp-input-row">
+        <div class="cfp-field-wrap">
+          <label class="cfp-field-label">X</label>
+          <input class="cfp-input" id="cfp-x" type="number" step="0.1" placeholder="0.0" min="-20" max="20"/>
+        </div>
+        <div class="cfp-field-wrap">
+          <label class="cfp-field-label">Y</label>
+          <input class="cfp-input" id="cfp-y" type="number" step="0.1" placeholder="0.0" min="-20" max="20"/>
+        </div>
+        <button class="cfp-add-btn" id="cfp-add-btn" title="Agregar punto (Enter)">+</button>
+      </div>
+      <div class="cfp-error" id="cfp-error"></div>
+    </div>
+
+    <!-- Lista de puntos -->
+    <div class="cfp-points-section">
+      <div class="cfp-points-header">
+        <span class="cfp-points-title">Puntos <span id="cfp-count" class="cfp-count">0</span></span>
+        <span class="cfp-hint" id="cfp-hint">Mínimo 2 puntos</span>
+      </div>
+      <div class="cfp-points-list" id="cfp-points-list">
+        <div class="cfp-empty" id="cfp-empty">Sin puntos aún</div>
+      </div>
+    </div>
+
+    <!-- Preview del canvas -->
+    <div class="cfp-preview-section">
+      <div class="cfp-preview-label">Vista previa</div>
+      <canvas id="cfp-canvas" class="cfp-canvas" width="260" height="180"></canvas>
+    </div>
+
+    <!-- Acciones -->
+    <div class="cfp-actions">
+      <button class="cfp-btn cfp-btn-ghost" id="cfp-clear-btn">Limpiar</button>
+      <button class="cfp-btn cfp-btn-primary" id="cfp-apply-btn" disabled>Usar figura</button>
+    </div>
+
+    <div class="cfp-tip">
+      <span class="cfp-tip-icon">💡</span>
+      Los puntos se conectarán en orden. La figura se cerrará automáticamente.
+    </div>
+  </div>
+</div>
+<div id="cfp-overlay"></div>
+
 <!-- Lógica JavaScript -->
 <script src="js/script.js"></script>
 <!-- Show app after loading screen fades out -->
 <script>
-document.getElementById('loading-screen').addEventListener('transitionend', function () {
-  this.style.display = 'none';
-});
+// Oculta el loading-screen del DOM solo DESPUÉS de que termine su transición de fade-out
+//document.getElementById('loading-screen').addEventListener('transitionend', function () {
+//  this.style.display = 'none';
+//});
 
-// Show #app after loading screen starts fading
+// Cuando loading-screen recibe la clase 'done' (fade-out iniciado):
+//  1. Muestra #app para que el canvas tenga dimensiones reales
+//  2. Llama resizeCanvas() para calcular el tamaño correcto
+//  3. Arranca el loop una sola vez con requestAnimationFrame (pasa timestamp real a loop(now))
 const _obs = new MutationObserver(() => {
   if (document.getElementById('loading-screen').classList.contains('done')) {
+    _obs.disconnect();
 
-    document.getElementById('app').classList.add('visible');
+    const app = document.getElementById('app');
+    app.classList.add('visible');
 
+    // Espera un frame para que el browser pinte #app y calcule dimensiones
     requestAnimationFrame(() => {
       resizeCanvas();
-      loop();
+      requestAnimationFrame(loop); // loop(now) recibe el timestamp real de rAF
     });
-
-    _obs.disconnect();
   }
 });
 
 _obs.observe(
   document.getElementById('loading-screen'),
-  {
-    attributes: true,
-    attributeFilter: ['class']
-  }
+  { attributes: true, attributeFilter: ['class'] }
 );
 </script>
 </body>

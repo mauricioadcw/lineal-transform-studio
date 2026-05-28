@@ -3,9 +3,9 @@
 ║   LINEAL TRANSFORM STUDIO  ·  Backend Python + pywebview             ║
 ║   Matemática Discreta · 1AMA0708                                     ║
 ║                                                                      ║
-║   Ejecución:   python main_v3.py                                     ║
+║   Ejecución:   python src\main.py                                    ║
 ╚══════════════════════════════════════════════════════════════════════╝
-Empaquetado: pyinstaller --noconfirm --onefile --windowed --add-data "index.html;." main_v3.py
+Empaquetado: pyinstaller --noconfirm --onefile --windowed --name "LinealTransformStudio" --add-data "src/frontend;frontend" src/main.py
 """
 
 import webview
@@ -140,6 +140,19 @@ class TransformAPI:
         }
         return matrices.get(name, np.eye(2))
 
+    def apply_translation(self, points: list, tx: float, ty: float) -> list:
+        """
+        Aplica traslación afín con matriz homogénea 3×3.
+        points: [[x,y], ...]  →  retorna [[x+tx, y+ty], ...]
+        """
+        pts = np.array(points, dtype=float)
+        result = pts + np.array([tx, ty])
+        return result.tolist()
+
+    def get_translation_matrix3(self, tx: float, ty: float) -> list:
+        """Devuelve la matriz homogénea 3×3 de traslación."""
+        return [[1, 0, tx], [0, 1, ty], [0, 0, 1]]
+
     def _transform_names(self):
         return [
             "Rotación","Homotecia",
@@ -150,6 +163,8 @@ class TransformAPI:
             "Proyección eje X","Proyección eje Y",
             "Rotación + Escala","Reflexión θ",
             "Compresión / Expansión",
+            # Afines
+            "Traslación",
         ]
 
 

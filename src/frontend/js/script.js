@@ -4,6 +4,13 @@
    ══════════════════════════════════════════════════════════ */
 
 /* ─── PANTALLA DE CARGA ───────────────────────────────────── */
+
+// Seguridad: si JS lanza un error grave, forzar el cierre de la pantalla de carga
+window.addEventListener('error', () => {
+  const s = document.getElementById('loading-screen');
+  if (s && !s.classList.contains('done')) s.classList.add('done');
+});
+
 (function initLoadingScreen() {
   const screen = document.getElementById('loading-screen');
   if (!screen) return;
@@ -24,7 +31,12 @@
 
   // Celdas de la matriz parpadeando aleatoriamente
   const cellInterval = setInterval(() => {
-    cells.forEach(c => { if (c) c.classList.remove('lit'); });
+    cells.forEach(c => {
+      if (c) {
+        c.classList.remove('lit');
+        c.textContent = Math.random() > 0.5 ? '1' : '0'; // ← cambia el valor
+      }
+    });
     const count = Math.floor(Math.random() * 4) + 1;
     cells.slice().sort(() => Math.random() - .5).slice(0, count)
          .forEach(c => { if (c) c.classList.add('lit'); });
@@ -34,17 +46,32 @@
   function nextStep() {
     if (si >= steps.length) {
       clearInterval(cellInterval);
-      cells.forEach(c => { if (c) c.classList.add('lit'); });
-      setTimeout(() => { screen.classList.add('done'); }, 280);
+      const identity = ['1','0','0', '0','1','0', '0','0','1'];
+      cells.forEach((c, i) => {
+        if (c) {
+          c.classList.add('lit');
+          c.textContent = identity[i]; // ← restaura la identidad
+        }
+      });
+      setTimeout(() => {
+        screen.classList.add('done');
+        screen.addEventListener('transitionend', () => {
+          screen.style.display = 'none';
+        }, { once: true });
+      }, 500);
       return;
     }
     const s = steps[si++];
     if (fill)   fill.style.width   = s.pct + '%';
     if (status) status.textContent = s.msg;
-    const delay = si === steps.length ? 200 : 240 + Math.random() * 130;
+    const delay = si === steps.length ? 400 : 500 + Math.random() * 280;
     setTimeout(nextStep, delay);
   }
-  setTimeout(nextStep, 350);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        setTimeout(nextStep, 600);
+    });
+  });
 })();
 
 /* ─── DATOS DE APPS REALES ───────────────────────────────── */
@@ -163,7 +190,7 @@ const FIGURAS = {
   "Triángulo": [[0, 2.5], [2, -1.5], [-2, -1.5]],
   "Cuadrado":  [[-1.5, 1.5], [1.5, 1.5], [1.5, -1.5], [-1.5, -1.5]],
   "Flecha":    [[0, .8], [1.8, 0], [0, -.8], [0, -.3], [-1.8, -.3], [-1.8, .3], [0, .3]],
-  "Letra F":   [[-1,  1.8],[-1, -2], [-0.2, -2], [-0.2, -0.4], [ 0.7, -0.4], [ 0.7,  0.2], [-0.2,  0.2], [-0.2,  1.1], [ 1.2,  1.1], [ 1.2,  1.8]],
+  "Letra F": [[-1, 2], [1, 2], [1, 1.5], [-0.2, 1.5], [-0.2, 0.7], [1, 0.7], [1, 0.2], [-0.2, 0.2], [-0.2, -2], [-1, -2]],
   "Estrella":  [[0, 2.2], [.5, .7], [2.1, .7], [.8, -.3], [1.3, -2], [0, -1], [-1.3, -2], [-.8, -.3], [-2.1, .7], [-.5, .7]],
   "Casa":      [[0, 2.5], [2, .5], [2, -2], [-2, -2], [-2, .5]],
 };
@@ -176,6 +203,8 @@ const TRANSFORMS = [
   // ── Nuevas ──────────────────────────────────────────────
   "Proyección eje X", "Proyección eje Y",
   "Rotación + Escala", "Reflexión θ", "Compresión / Expansión",
+  // ── Afines ──────────────────────────────────────────────
+  "Traslación",
 ];
 
 const TR_COLORS = {
@@ -192,6 +221,8 @@ const TR_COLORS = {
   "Rotación + Escala":      "var(--rot)",
   "Reflexión θ":            "var(--ref2)",
   "Compresión / Expansión": "var(--hom)",
+  // ── Afines ──────────────────────────────────────────────
+  "Traslación":               "var(--accent)",
 };
 
 const TR_COLORS_HEX = {
@@ -208,6 +239,8 @@ const TR_COLORS_HEX = {
   "Rotación + Escala":      "#ffaa28",
   "Reflexión θ":            "#ff7848",
   "Compresión / Expansión": "#3de878",
+  // ── Afines ──────────────────────────────────────────────
+  "Traslación":                "#4096ff",
 };
 
 /* ─── ESTADO ─────────────────────────────────────────────── */
@@ -217,6 +250,8 @@ const state = {
   ang:    45,
   esc:    2.0,
   ciz:    1.0,
+  tx:     2.0,
+  ty:     1.0,
   showAll:    true,
   showGrid:   true,
   showInfo:   true,
@@ -273,6 +308,14 @@ function applyMatrix(pts, mat) {
   ]);
 }
 
+/* Aplica una transformación afín con matriz homogénea 3×3 [[a,b,tx],[c,d,ty],[0,0,1]] */
+function applyAffine(pts, mat3) {
+  return pts.map(([x, y]) => [
+    mat3[0][0] * x + mat3[0][1] * y + mat3[0][2],
+    mat3[1][0] * x + mat3[1][1] * y + mat3[1][2],
+  ]);
+}
+
 function getMatLabel(name, ang, esc, ciz) {
   const c  = +Math.cos(deg2rad(ang)).toFixed(3);
   const s  = +Math.sin(deg2rad(ang)).toFixed(3);
@@ -299,9 +342,16 @@ function getMatLabel(name, ang, esc, ciz) {
 
 function recalcular() {
   const fig = FIGURAS[FIG_NAMES[state.figIdx]];
+  if (!fig) return;
   state.transPts = {};
   for (const name of TRANSFORMS) {
-    state.transPts[name] = applyMatrix(fig, getMatrix(name, state.ang, state.esc, state.ciz));
+    if (name === "Traslación") {
+      // Matriz homogénea 3×3: [[1,0,tx],[0,1,ty],[0,0,1]]
+      const mat3 = [[1, 0, state.tx], [0, 1, state.ty], [0, 0, 1]];
+      state.transPts[name] = applyAffine(fig, mat3);
+    } else {
+      state.transPts[name] = applyMatrix(fig, getMatrix(name, state.ang, state.esc, state.ciz));
+    }
   }
 }
 
@@ -536,41 +586,42 @@ function renderCanvas() {
 const FORMULAS = {
   "Rotación":               { main: "T(v) = R(θ)·v",        param: () => `θ = ${state.ang.toFixed(0)}°`,                          note: "Preserva longitudes y ángulos" },
   "Homotecia":              { main: "T(v) = k·I·v",         param: () => `k = ${state.esc.toFixed(2)}`,                           note: "Escala uniforme desde el origen" },
-  "Reflexión eje X":        { main: "T(x,y) = (x, −y)",     param: () => "Eje de reflexión: eje X",                               note: "Invierte componente vertical" },
-  "Reflexión eje Y":        { main: "T(x,y) = (−x, y)",     param: () => "Eje de reflexión: eje Y",                               note: "Invierte componente horizontal" },
+  "Reflexión eje X":        { main: "T(x,y) = (x, -y)",     param: () => "Eje de reflexión: eje X",                               note: "Invierte componente vertical" },
+  "Reflexión eje Y":        { main: "T(x,y) = (-x, y)",     param: () => "Eje de reflexión: eje Y",                               note: "Invierte componente horizontal" },
   "Reflexión y = x":        { main: "T(x,y) = (y, x)",      param: () => "Eje: y = x",                                            note: "Intercambia coordenadas" },
-  "Reflexión y = -x":       { main: "T(x,y) = (−y, −x)",   param: () => "Eje: y = −x",                                           note: "Intercambia e invierte" },
+  "Reflexión y = -x":       { main: "T(x,y) = (-y, -x)",   param: () => "Eje: y = -x",                                           note: "Intercambia e invierte" },
   "Cizallamiento X":        { main: "T(x,y) = (x+k·y, y)",  param: () => `k = ${state.ciz.toFixed(2)}`,                          note: "Desplaza horizontal según y" },
   "Cizallamiento Y":        { main: "T(x,y) = (x, k·x+y)", param: () => `k = ${state.ciz.toFixed(2)}`,                           note: "Desplaza vertical según x" },
-  // ── Nuevas ──────────────────────────────────────────────
   "Proyección eje X":       { main: "T(x,y) = (x, 0)",      param: () => "Proyección ortogonal sobre X",                          note: "det = 0 · no invertible · idempotente" },
   "Proyección eje Y":       { main: "T(x,y) = (0, y)",      param: () => "Proyección ortogonal sobre Y",                          note: "det = 0 · no invertible · idempotente" },
   "Rotación + Escala":      { main: "T(v) = k·R(θ)·v",      param: () => `θ = ${state.ang.toFixed(0)}°   k = ${state.esc.toFixed(2)}`, note: "Similitud directa · det = k²" },
-  "Reflexión θ":            { main: "T(x,y) = (x·cosθ+y·sinθ, x·sinθ−y·cosθ)", param: () => `θ = ${state.ang.toFixed(0)}°`,     note: "Isometría inversa · det = −1" },
+  "Reflexión θ":            { main: "T(x,y) = (x·cosθ+y·sinθ, x·sinθ-y·cosθ)", param: () => `θ = ${state.ang.toFixed(0)}°`,     note: "Isometría inversa · det = −1" },
   "Compresión / Expansión": { main: "T(x,y) = (k·x, y/k)",  param: () => `k = ${state.esc.toFixed(2)}   1/k = ${(1/Math.max(state.esc,0.01)).toFixed(3)}`, note: "Preserva área (det = 1) · distorsión hiperbólica" },
+  // ── Afines ──────────────────────────────────────────────
+  "Traslación": { main: "T(x,y) = (x+tx, y+ty)", param: () => `tx = ${state.tx.toFixed(2)}   ty = ${state.ty.toFixed(2)}`, note: "Transformación afín · no es lineal (no fija el origen)" },
 };
 
 const PROPS = {
   "Rotación":               [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = 1",  t: 1 }],
   "Homotecia":              [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = k²", t: 1 }],
-  "Reflexión eje X":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
-  "Reflexión eje Y":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
-  "Reflexión y = x":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
-  "Reflexión y = −x":       [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }],
+  "Reflexión eje X":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = -1", t: 1 }],
+  "Reflexión eje Y":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = -1", t: 1 }],
+  "Reflexión y = x":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = -1", t: 1 }],
+  "Reflexión y = -x":       [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = -1", t: 1 }],
   "Cizallamiento X":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }],
   "Cizallamiento Y":        [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }],
-  // ── Nuevas ──────────────────────────────────────────────
   "Proyección eje X":       [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = 0",  t: 0 }, { n: "Idempotente", t: 1 }],
   "Proyección eje Y":       [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = 0",  t: 0 }, { n: "Idempotente", t: 1 }],
   "Rotación + Escala":      [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 0 }, { n: "Isometría", t: 0 }, { n: "det = k²", t: 1 }, { n: "Similitud",   t: 1 }],
-  "Reflexión θ":            [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = −1", t: 1 }, { n: "Involución",  t: 1 }],
+  "Reflexión θ":            [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "det = -1", t: 1 }, { n: "Involución",  t: 1 }],
   "Compresión / Expansión": [{ n: "Lineal", t: 1 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 0 }, { n: "det = 1",  t: 1 }, { n: "Hiperbólica", t: 1 }],
+  // ── Afines ──────────────────────────────────────────────
+  "Traslación": [{ n: "Afín", t: 1 }, { n: "Lineal", t: 0 }, { n: "Preserva área", t: 1 }, { n: "Isometría", t: 1 }, { n: "Invertible", t: 1 }],
 };
 
 function updateInfo() {
   const name  = TRANSFORMS[state.trIdx];
   const hex   = TR_COLORS_HEX[name];
-  const mat   = getMatLabel(name, state.ang, state.esc, state.ciz);
   const f     = FORMULAS[name];
   const props = PROPS[name] || [];
 
@@ -582,9 +633,44 @@ function updateInfo() {
 
   document.getElementById('mat-br-l').style.setProperty('--c-tr', hex);
   document.getElementById('mat-br-r').style.setProperty('--c-tr', hex);
-  ['m00', 'm01', 'm10', 'm11'].forEach((id, i) =>
-    document.getElementById(id).textContent = mat[i >> 1][i & 1]
-  );
+
+  // Título del bloque de matriz
+  const matTitle = document.getElementById('matrix-title');
+  if (matTitle) matTitle.textContent = name === "Traslación" ? "Matriz 3×3 (homogénea)" : "Matriz 2×2";
+
+  if (name === "Traslación") {
+    // Matriz homogénea 3×3 real
+    const txs = state.tx.toFixed(2), tys = state.ty.toFixed(2);
+    const matGrid = document.querySelector('.mat-grid');
+    // Cambiar a grilla 3×3
+    matGrid.classList.add('mat-3x3');
+    // Reconstruir las 9 celdas
+    matGrid.innerHTML = `
+      <div class="mat-cell diag" style="--c-tr:${hex}">1</div>
+      <div class="mat-cell zero">0</div>
+      <div class="mat-cell tx-hi" style="--c-tr:${hex}">${txs}</div>
+      <div class="mat-cell zero">0</div>
+      <div class="mat-cell diag" style="--c-tr:${hex}">1</div>
+      <div class="mat-cell tx-hi" style="--c-tr:${hex}">${tys}</div>
+      <div class="mat-cell zero">0</div>
+      <div class="mat-cell zero">0</div>
+      <div class="mat-cell diag" style="--c-tr:${hex}">1</div>`;
+    document.getElementById('mat-br-l').title = 'Matriz homogénea 3×3';
+  } else {
+    const matGrid = document.querySelector('.mat-grid');
+    matGrid.classList.remove('mat-3x3');
+    // Restaurar las 4 celdas 2×2
+    matGrid.innerHTML = `
+      <div class="mat-cell diag" id="m00" style="--c-tr:${hex}">—</div>
+      <div class="mat-cell"      id="m01">—</div>
+      <div class="mat-cell"      id="m10">—</div>
+      <div class="mat-cell diag" id="m11" style="--c-tr:${hex}">—</div>`;
+    const mat = getMatLabel(name, state.ang, state.esc, state.ciz);
+    ['m00', 'm01', 'm10', 'm11'].forEach((id, i) =>
+      document.getElementById(id).textContent = mat[i >> 1][i & 1]
+    );
+    document.getElementById('mat-br-l').title = '';
+  }
 
   document.getElementById('eq-main').textContent  = f.main;
   document.getElementById('eq-param').textContent = f.param();
@@ -610,8 +696,17 @@ function buildSidebar() {
     fg.appendChild(d);
   });
 
+  // Chip "Personalizada"
+  const customChip = document.createElement('div');
+  customChip.className = 'fig-chip custom-fig-chip';
+  customChip.id = 'custom-fig-chip';
+  customChip.innerHTML = '+ Custom';
+  customChip.title = 'Construir figura personalizada';
+  customChip.onclick = openCustomFigPanel;
+  fg.appendChild(customChip);
+
   // Botones de transformación
-  const TR_KEYS = ['1','2','3','4','5','6','7','8','9','0','Q','W','E'];
+  const TR_KEYS = ['1','2','3','4','5','6','7','8','9','0','Q','W','E','T'];
   const tl = document.getElementById('tr-list');
   TRANSFORMS.forEach((n, i) => {
     const d = document.createElement('div');
@@ -655,22 +750,40 @@ function refreshSidebar() {
   document.querySelectorAll('.fig-chip').forEach((el, i) => el.classList.toggle('active', i === state.figIdx));
   document.querySelectorAll('.tr-btn').forEach((el, i) => el.classList.toggle('active', i === state.trIdx));
   updateParams();
-  document.getElementById('fig-badge').textContent = FIG_NAMES[state.figIdx];
+  
+  const displayName = FIG_NAMES[state.figIdx];
+  document.getElementById('fig-badge').textContent = (displayName === '__custom__') ? 'Personalizada' : displayName;
 }
 
 function updateParams() {
   document.getElementById('fill-ang').style.width = ((state.ang + 180) / 360 * 100) + '%';
   document.getElementById('fill-esc').style.width = ((state.esc - .1) / 3.9 * 100) + '%';
   document.getElementById('fill-ciz').style.width = ((state.ciz + 3)  / 6   * 100) + '%';
+  document.getElementById('fill-tx').style.width  = ((state.tx  + 5)  / 10  * 100) + '%';
+  document.getElementById('fill-ty').style.width  = ((state.ty  + 5)  / 10  * 100) + '%';
   document.getElementById('val-ang').textContent  = state.ang.toFixed(0) + '°';
   document.getElementById('val-esc').textContent  = state.esc.toFixed(2);
   document.getElementById('val-ciz').textContent  = state.ciz.toFixed(2);
+  document.getElementById('val-tx').textContent   = state.tx.toFixed(2);
+  document.getElementById('val-ty').textContent   = state.ty.toFixed(2);
+
+  // Mostrar/ocultar sliders según transformación activa
+  const isTr = TRANSFORMS[state.trIdx] === "Traslación";
+  document.getElementById('param-row-ang').style.display = isTr ? 'none' : '';
+  document.getElementById('param-row-esc').style.display = isTr ? 'none' : '';
+  document.getElementById('param-row-ciz').style.display = isTr ? 'none' : '';
+  document.getElementById('param-row-tx').style.display  = isTr ? '' : 'none';
+  document.getElementById('param-row-ty').style.display  = isTr ? '' : 'none';
 }
 
 /* Parámetros arrastrables con el mouse */
 let dragging = null;
+let activeParamEdit = null; // param key currently being edited
 document.querySelectorAll('.param-track').forEach(el => {
   el.addEventListener('mousedown', e => {
+    e.stopPropagation();
+    // If an edit input is open, close it first
+    if (activeParamEdit) closeParamEdit(true);
     dragging = el.dataset.param;
     setParamFromX(dragging, e.clientX, el);
   });
@@ -687,8 +800,116 @@ function setParamFromX(p, clientX, el) {
   if (p === 'ang') state.ang = -180 + t * 360;
   if (p === 'esc') state.esc = .1   + t * 3.9;
   if (p === 'ciz') state.ciz = -3   + t * 6;
+  if (p === 'tx')  state.tx  = -5   + t * 10;
+  if (p === 'ty')  state.ty  = -5   + t * 10;
   recalcular(); updateParams(); updateInfo();
 }
+
+/* ─── EDICIÓN DIRECTA DE PARÁMETROS (clic en el valor) ──── */
+const PARAM_CONFIG = {
+  ang: { min: -180, max: 180,  step: 1,   decimals: 0, suffix: '°' },
+  esc: { min: 0.1,  max: 4,    step: 0.1, decimals: 2, suffix: ''  },
+  ciz: { min: -3,   max: 3,    step: 0.1, decimals: 2, suffix: ''  },
+  tx:  { min: -5,   max: 5,    step: 0.1, decimals: 2, suffix: ''  },
+  ty:  { min: -5,   max: 5,    step: 0.1, decimals: 2, suffix: ''  },
+};
+
+function openParamEdit(param) {
+  if (activeParamEdit) closeParamEdit(false);
+
+  const cfg    = PARAM_CONFIG[param];
+  const valEl  = document.getElementById('val-' + param);
+  if (!valEl) return;
+
+  activeParamEdit = param;
+  valEl.classList.add('editing');
+
+  const inp = document.createElement('input');
+  inp.type      = 'number';
+  inp.className = 'param-inline-input';
+  inp.style.setProperty('--c', getComputedStyle(valEl).color);
+  inp.min   = cfg.min;
+  inp.max   = cfg.max;
+  inp.step  = cfg.step;
+  inp.value = state[param].toFixed(cfg.decimals);
+  inp.id    = 'param-edit-' + param;
+
+  // Insert right after the value badge
+  valEl.parentNode.insertBefore(inp, valEl.nextSibling);
+  inp.focus();
+  inp.select();
+
+  function validate(v) {
+    const n = parseFloat(v);
+    if (isNaN(n)) return null;
+    return Math.max(cfg.min, Math.min(cfg.max, n));
+  }
+
+  function commit() {
+    const clamped = validate(inp.value);
+    if (clamped !== null) {
+      state[param] = clamped;
+      recalcular(); updateParams(); updateInfo();
+      inp.classList.remove('error');
+    }
+    closeParamEdit(true);
+  }
+
+  inp.addEventListener('input', () => {
+    const clamped = validate(inp.value);
+    inp.classList.toggle('error', clamped === null);
+  });
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeParamEdit(true); }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const cur = parseFloat(inp.value) || state[param];
+      inp.value = Math.min(cfg.max, +(cur + cfg.step).toFixed(cfg.decimals + 1));
+      inp.classList.remove('error');
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const cur = parseFloat(inp.value) || state[param];
+      inp.value = Math.max(cfg.min, +(cur - cfg.step).toFixed(cfg.decimals + 1));
+      inp.classList.remove('error');
+    }
+  });
+
+  inp.addEventListener('blur', () => {
+    // Small delay so a click on another val badge goes through first
+    setTimeout(() => { if (activeParamEdit === param) commit(); }, 120);
+  });
+}
+
+function closeParamEdit(restoreVal) {
+  if (!activeParamEdit) return;
+  const p     = activeParamEdit;
+  activeParamEdit = null;
+  const inp   = document.getElementById('param-edit-' + p);
+  const valEl = document.getElementById('val-' + p);
+  if (inp)   inp.remove();
+  if (valEl) valEl.classList.remove('editing');
+  if (restoreVal) { updateParams(); updateInfo(); }
+}
+
+// Bind clicks on each param value badge
+['ang','esc','ciz','tx','ty'].forEach(p => {
+  const el = document.getElementById('val-' + p);
+  if (el) el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (activeParamEdit === p) return; // already editing
+    openParamEdit(p);
+  });
+});
+
+// Click outside closes the editor
+document.addEventListener('click', (e) => {
+  if (!activeParamEdit) return;
+  const inp = document.getElementById('param-edit-' + activeParamEdit);
+  if (inp && !inp.contains(e.target)) closeParamEdit(true);
+});
 
 /* ─── ANIMACIÓN DE TRANSFORMACIÓN ───────────────────────── */
 function launchAnim() {
@@ -801,6 +1022,9 @@ document.addEventListener('keydown', e => {
   const splashVisible = !document.getElementById('splash').classList.contains('hidden');
   if (splashVisible) return; // ninguna tecla actúa sobre el splash
 
+  // Input de parámetro abierto: el keydown lo maneja el propio input; no pasar al resto
+  if (activeParamEdit) return;
+
   const k = e.key;
 
   // Modal abierto: solo ESC actúa
@@ -815,7 +1039,8 @@ document.addEventListener('keydown', e => {
     return;
   }
   // Teclas para las nuevas transformaciones
-  const NEW_TR_KEYS = { '9': 8, '0': 9, 'q': 10, 'Q': 10, 'w': 11, 'W': 11, 'e': 12, 'E': 12 };
+  const NEW_TR_KEYS = { '9': 8, '0': 9, 'q': 10, 'Q': 10, 'w': 11, 'W': 11, 'e': 12, 'E': 12,
+                        't': 13, 'T': 13};
   if (NEW_TR_KEYS[k] !== undefined) {
     state.trIdx = NEW_TR_KEYS[k]; refreshSidebar(); updateInfo(); return;
   }
@@ -829,6 +1054,7 @@ document.addEventListener('keydown', e => {
     if      (n === 'Rotación')          state.ang = Math.min(state.ang + 15, 180);
     else if (n === 'Homotecia')         state.esc = Math.min(state.esc + .25, 4);
     else if (n.includes('Cizalla'))     state.ciz = Math.min(state.ciz + .25, 3);
+    else if (n === 'Traslación')        state.tx  = Math.min(state.tx  + .5,  5);
     recalcular(); updateParams(); updateInfo();
   }
   if (k === '-') {
@@ -836,6 +1062,7 @@ document.addEventListener('keydown', e => {
     if      (n === 'Rotación')          state.ang = Math.max(state.ang - 15, -180);
     else if (n === 'Homotecia')         state.esc = Math.max(state.esc - .25, .1);
     else if (n.includes('Cizalla'))     state.ciz = Math.max(state.ciz - .25, -3);
+    else if (n === 'Traslación')        state.tx  = Math.max(state.tx  - .5, -5);
     recalcular(); updateParams(); updateInfo();
   }
 
@@ -844,7 +1071,7 @@ document.addEventListener('keydown', e => {
   if (k === '0' && e.ctrlKey) { e.preventDefault(); state.zoom = 1.0; }
 
   if (k === ' ')            { e.preventDefault(); launchAnim(); }
-  if (k === 'r' || k === 'R') { state.ang = 45; state.esc = 2; state.ciz = 1; state.animActive = false; recalcular(); updateParams(); updateInfo(); }
+  if (k === 'r' || k === 'R') { state.ang = 45; state.esc = 2; state.ciz = 1; state.tx = 2; state.ty = 1; state.animActive = false; recalcular(); updateParams(); updateInfo(); }
   if (k === 'a' || k === 'A') { state.showAll   = !state.showAll;   document.querySelector('[data-key=showAll]').classList.toggle('active',   state.showAll); }
   if (k === 'g' || k === 'G') { state.showGrid  = !state.showGrid;  document.querySelector('[data-key=showGrid]').classList.toggle('active',  state.showGrid); }
   if (k === 'm' || k === 'M') {
@@ -904,16 +1131,366 @@ cw.addEventListener('mouseleave', () => { state.mouseX = null; state.mouseY = nu
 cw.addEventListener('dblclick',  () => { state.zoom = 1; state.panX = 0; state.panY = 0; });
 
 /* ─── LOOP PRINCIPAL ─────────────────────────────────────── */
-let fpsFrames = 0, fpsTimer = 0;
-function loop() {
+let fpsFrames = 0, fpsLast = 0;
+function loop(now) {
   tickAnim();
   renderCanvas();
-  fpsFrames++; fpsTimer += 16;
-  if (fpsTimer > 600) {
-    document.getElementById('fps').textContent = fpsFrames + ' fps';
-    fpsFrames = 0; fpsTimer = 0;
+  fpsFrames++;
+  if (fpsLast === 0) fpsLast = now;          // inicializa en el primer frame
+  if (now - fpsLast >= 600) {                // muestra cada ~600 ms reales
+    const elapsed = (now - fpsLast) / 1000;
+    document.getElementById('fps').textContent =
+      Math.round(fpsFrames / elapsed) + ' fps';
+    fpsFrames = 0;
+    fpsLast   = now;
   }
   requestAnimationFrame(loop);
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   FIGURA PERSONALIZADA — Panel de ingreso de puntos
+   Reescritura limpia y funcional
+   ══════════════════════════════════════════════════════════ */
+
+// ─── Estado ──────────────────────────────────────────────
+const cfpState = { points: [] };
+const CUSTOM_FIG_KEY = '__custom__';
+const CFP_MAX   = 30;
+const CFP_CMIN  = -20;
+const CFP_CMAX  =  20;
+
+// ─── DOM refs (resueltos una vez) ────────────────────────
+const cfpPanel   = document.getElementById('custom-fig-panel');
+const cfpOverlay = document.getElementById('cfp-overlay');
+const cfpXInput  = document.getElementById('cfp-x');
+const cfpYInput  = document.getElementById('cfp-y');
+const cfpAddBtn  = document.getElementById('cfp-add-btn');
+const cfpApplyBtn= document.getElementById('cfp-apply-btn');
+const cfpClearBtn= document.getElementById('cfp-clear-btn');
+const cfpList    = document.getElementById('cfp-points-list');
+const cfpCount   = document.getElementById('cfp-count');
+const cfpHint    = document.getElementById('cfp-hint');
+const cfpError   = document.getElementById('cfp-error');
+const cfpPreview = document.getElementById('cfp-canvas');
+const cfpCtx     = cfpPreview.getContext('2d');
+
+// ─── Abrir / Cerrar ──────────────────────────────────────
+function openCustomFigPanel() {
+  cfpOverlay.classList.add('visible');
+  cfpPanel.classList.add('visible');
+  cfpRefreshAll();
+  // pequeño delay para que el panel esté visible antes de dibujar
+  setTimeout(() => { cfpDrawPreview(); }, 50);
+  cfpXInput.focus();
+}
+
+function closeCustomFigPanel() {
+  cfpOverlay.classList.remove('visible');
+  cfpPanel.classList.remove('visible');
+  cfpError.textContent = '';
+  cfpXInput.classList.remove('error');
+  cfpYInput.classList.remove('error');
+}
+
+document.getElementById('cfp-close').addEventListener('click', closeCustomFigPanel);
+cfpOverlay.addEventListener('click', closeCustomFigPanel);
+
+// ─── Validación y adición ────────────────────────────────
+function cfpValidateAndAdd() {
+  // Limpiar errores previos
+  cfpError.textContent = '';
+  cfpXInput.classList.remove('error');
+  cfpYInput.classList.remove('error');
+
+  const xRaw = cfpXInput.value.trim();
+  const yRaw = cfpYInput.value.trim();
+
+  if (xRaw === '' && yRaw === '') {
+    cfpError.textContent = 'Ingresa las coordenadas X e Y.';
+    cfpXInput.classList.add('error');
+    cfpYInput.classList.add('error');
+    return;
+  }
+  if (xRaw === '') {
+    cfpError.textContent = 'El campo X está vacío.';
+    cfpXInput.classList.add('error');
+    return;
+  }
+  if (yRaw === '') {
+    cfpError.textContent = 'El campo Y está vacío.';
+    cfpYInput.classList.add('error');
+    return;
+  }
+
+  const x = Number(xRaw);
+  const y = Number(yRaw);
+
+  if (!isFinite(x) || isNaN(x)) {
+    cfpError.textContent = 'X debe ser un número válido.';
+    cfpXInput.classList.add('error');
+    return;
+  }
+  if (!isFinite(y) || isNaN(y)) {
+    cfpError.textContent = 'Y debe ser un número válido.';
+    cfpYInput.classList.add('error');
+    return;
+  }
+  if (x < CFP_CMIN || x > CFP_CMAX) {
+    cfpError.textContent = `X debe estar entre ${CFP_CMIN} y ${CFP_CMAX}.`;
+    cfpXInput.classList.add('error');
+    return;
+  }
+  if (y < CFP_CMIN || y > CFP_CMAX) {
+    cfpError.textContent = `Y debe estar entre ${CFP_CMIN} y ${CFP_CMAX}.`;
+    cfpYInput.classList.add('error');
+    return;
+  }
+  if (cfpState.points.length >= CFP_MAX) {
+    cfpError.textContent = `Máximo ${CFP_MAX} puntos permitidos.`;
+    return;
+  }
+
+  const xr = Math.round(x * 10000) / 10000;
+  const yr = Math.round(y * 10000) / 10000;
+
+  const isDup = cfpState.points.some(([px, py]) =>
+    Math.abs(px - xr) < 0.0001 && Math.abs(py - yr) < 0.0001
+  );
+  if (isDup) {
+    cfpError.textContent = `El punto (${xr}, ${yr}) ya existe.`;
+    cfpXInput.classList.add('error');
+    cfpYInput.classList.add('error');
+    return;
+  }
+
+  cfpState.points.push([xr, yr]);
+  cfpXInput.value = '';
+  cfpYInput.value = '';
+  cfpXInput.classList.remove('error');
+  cfpYInput.classList.remove('error');
+  cfpXInput.focus();
+
+  cfpRefreshAll();
+}
+
+cfpAddBtn.addEventListener('click', cfpValidateAndAdd);
+
+cfpXInput.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter')  { e.preventDefault(); cfpValidateAndAdd(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeCustomFigPanel(); }
+});
+cfpYInput.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter')  { e.preventDefault(); cfpValidateAndAdd(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeCustomFigPanel(); }
+});
+cfpXInput.addEventListener('input', e => { e.stopPropagation(); cfpError.textContent = ''; cfpXInput.classList.remove('error'); });
+cfpYInput.addEventListener('input', e => { e.stopPropagation(); cfpError.textContent = ''; cfpYInput.classList.remove('error'); });
+
+// ─── Limpiar ─────────────────────────────────────────────
+cfpClearBtn.addEventListener('click', () => {
+  cfpState.points = [];
+  cfpError.textContent = '';
+  cfpXInput.classList.remove('error');
+  cfpYInput.classList.remove('error');
+  cfpRefreshAll();
+});
+
+// ─── Aplicar figura al plano principal ───────────────────
+cfpApplyBtn.addEventListener('click', () => {
+  if (cfpState.points.length < 2) return;
+
+  // Guardar en FIGURAS
+  FIGURAS[CUSTOM_FIG_KEY] = cfpState.points.map(p => [p[0], p[1]]);
+
+  // Agregar chip al sidebar si no existe
+  if (!FIG_NAMES.includes(CUSTOM_FIG_KEY)) {
+    FIG_NAMES.push(CUSTOM_FIG_KEY);
+    const fg = document.getElementById('fig-grid');
+    const chip = document.createElement('div');
+    chip.className   = 'fig-chip';
+    chip.id          = 'fig-chip-custom';
+    chip.textContent = 'Personalizada';
+    chip.onclick = () => {
+      state.figIdx = FIG_NAMES.indexOf(CUSTOM_FIG_KEY);
+      recalcular();
+      refreshSidebar();
+    };
+    const customBtn = document.getElementById('custom-fig-chip');
+    fg.insertBefore(chip, customBtn);
+  } else {
+    // Ya existe: actualizar chip si es necesario
+    const existing = document.getElementById('fig-chip-custom');
+    if (existing) existing.textContent = 'Personalizada';
+  }
+
+  state.figIdx = FIG_NAMES.indexOf(CUSTOM_FIG_KEY);
+  recalcular();
+  refreshSidebar();
+  closeCustomFigPanel();
+});
+
+// ─── Actualizar todo el panel ─────────────────────────────
+function cfpRefreshAll() {
+  cfpRenderList();
+  cfpUpdateBtn();
+  cfpDrawPreview();
+}
+
+// ─── Habilitar / deshabilitar botón Usar ─────────────────
+function cfpUpdateBtn() {
+  cfpApplyBtn.disabled = cfpState.points.length < 2;
+}
+
+// ─── Render lista de puntos ──────────────────────────────
+function cfpRenderList() {
+  const n = cfpState.points.length;
+  cfpCount.textContent = n;
+
+  // Limpiar lista
+  cfpList.innerHTML = '';
+
+  if (n === 0) {
+    const empty = document.createElement('div');
+    empty.className   = 'cfp-empty';
+    empty.textContent = 'Sin puntos aún';
+    cfpList.appendChild(empty);
+    cfpHint.textContent = 'Mínimo 2 puntos';
+    cfpHint.className   = 'cfp-hint';
+    return;
+  }
+
+  cfpState.points.forEach(([x, y], i) => {
+    const row = document.createElement('div');
+    row.className = 'cfp-point-row';
+    row.innerHTML = `
+      <span class="cfp-pt-index">P${i + 1}</span>
+      <span class="cfp-pt-dot"></span>
+      <span class="cfp-pt-coords">(${x}, ${y})</span>
+      <button class="cfp-pt-remove" title="Eliminar">×</button>`;
+    row.querySelector('.cfp-pt-remove').addEventListener('click', () => {
+      cfpState.points.splice(i, 1);
+      cfpError.textContent = '';
+      cfpRefreshAll();
+    });
+    cfpList.appendChild(row);
+  });
+
+  if (n < 2) {
+    cfpHint.textContent = 'Falta 1 punto más';
+    cfpHint.className   = 'cfp-hint';
+  } else if (n === 2) {
+    cfpHint.textContent = '✓ Listo (línea)';
+    cfpHint.className   = 'cfp-hint ok';
+  } else {
+    cfpHint.textContent = `✓ ${n} puntos — figura cerrada`;
+    cfpHint.className   = 'cfp-hint ok';
+  }
+}
+
+// ─── Preview canvas ──────────────────────────────────────
+function cfpDrawPreview() {
+  // Siempre usar las dimensiones del atributo width/height del canvas (260×180)
+  const W = cfpPreview.width;   // 260
+  const H = cfpPreview.height;  // 180
+
+  cfpCtx.clearRect(0, 0, W, H);
+
+  // Fondo
+  cfpCtx.fillStyle = '#07090f';
+  cfpCtx.fillRect(0, 0, W, H);
+
+  // Grid
+  cfpCtx.strokeStyle = '#111628';
+  cfpCtx.lineWidth = 1;
+  const cols = 8, rows = 6;
+  for (let c = 0; c <= cols; c++) {
+    const px = (W / cols) * c;
+    cfpCtx.beginPath(); cfpCtx.moveTo(px, 0); cfpCtx.lineTo(px, H); cfpCtx.stroke();
+  }
+  for (let r = 0; r <= rows; r++) {
+    const py = (H / rows) * r;
+    cfpCtx.beginPath(); cfpCtx.moveTo(0, py); cfpCtx.lineTo(W, py); cfpCtx.stroke();
+  }
+
+  // Ejes
+  cfpCtx.strokeStyle = '#374f90';
+  cfpCtx.lineWidth = 1.2;
+  cfpCtx.beginPath(); cfpCtx.moveTo(0, H / 2); cfpCtx.lineTo(W, H / 2); cfpCtx.stroke();
+  cfpCtx.beginPath(); cfpCtx.moveTo(W / 2, 0); cfpCtx.lineTo(W / 2, H); cfpCtx.stroke();
+
+  const pts = cfpState.points;
+
+  if (pts.length === 0) {
+    cfpCtx.fillStyle  = '#2a3455';
+    cfpCtx.font       = '11px DM Mono,monospace';
+    cfpCtx.textAlign  = 'center';
+    cfpCtx.fillText('Sin puntos', W / 2, H / 2 + 4);
+    cfpCtx.textAlign  = 'left';
+    return;
+  }
+
+  // Bounding box → escala auto-fit con margen mínimo de 4 unidades
+  const allX = pts.map(p => p[0]);
+  const allY = pts.map(p => p[1]);
+  const minX = Math.min(...allX), maxX = Math.max(...allX);
+  const minY = Math.min(...allY), maxY = Math.max(...allY);
+  const spanX = Math.max(maxX - minX, 4);
+  const spanY = Math.max(maxY - minY, 4);
+  const pad   = 30;
+  const scale = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY);
+  const midX  = (minX + maxX) / 2;
+  const midY  = (minY + maxY) / 2;
+
+  // Convierte coord matemática → píxel del preview
+  function px(x, y) {
+    return [
+      W / 2 + (x - midX) * scale,
+      H / 2 - (y - midY) * scale,
+    ];
+  }
+
+  // Calcular posiciones en pantalla
+  const screenPts = pts.map(([x, y]) => px(x, y));
+
+  // Dibujar polígono relleno
+  cfpCtx.beginPath();
+  cfpCtx.moveTo(screenPts[0][0], screenPts[0][1]);
+  for (let i = 1; i < screenPts.length; i++) {
+    cfpCtx.lineTo(screenPts[i][0], screenPts[i][1]);
+  }
+  if (pts.length >= 3) cfpCtx.closePath();
+
+  cfpCtx.fillStyle   = 'rgba(56,196,255,0.10)';
+  cfpCtx.fill();
+  cfpCtx.strokeStyle = '#38c4ff';
+  cfpCtx.lineWidth   = 1.8;
+  cfpCtx.stroke();
+
+  // Dibujar puntos y etiquetas
+  screenPts.forEach(([sx, sy], i) => {
+    // Anillo exterior
+    cfpCtx.beginPath();
+    cfpCtx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+    cfpCtx.fillStyle = '#38c4ff';
+    cfpCtx.fill();
+
+    // Centro oscuro
+    cfpCtx.beginPath();
+    cfpCtx.arc(sx, sy, 2, 0, Math.PI * 2);
+    cfpCtx.fillStyle = '#07090f';
+    cfpCtx.fill();
+
+    // Etiqueta
+    cfpCtx.font      = 'bold 8px DM Mono,monospace';
+    cfpCtx.fillStyle = '#4096ff';
+    cfpCtx.textAlign = 'center';
+    cfpCtx.fillText(`P${i + 1}`, sx, sy - 9);
+  });
+
+  cfpCtx.textAlign = 'left';
 }
 
 /* ─── INICIALIZACIÓN ─────────────────────────────────────── */
@@ -924,4 +1501,6 @@ buildAppsPanel();
 recalcular();
 refreshSidebar();
 updateInfo();
-requestAnimationFrame(loop);
+// NOTA: requestAnimationFrame(loop) NO se llama aquí.
+// El observer en index.html lo inicia una vez que #loading-screen
+// recibe la clase 'done' y #app ya es visible con dimensiones reales.
